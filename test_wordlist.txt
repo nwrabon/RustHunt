@@ -1,0 +1,4 @@
+nwrabon/Mallard-C2/blob/main/client/CLI.py
+robots.txt
+password.txt
+config/db.cfg
