@@ -6,7 +6,7 @@ use std::process;
 
 // ======================== TODO IF WE CAN GET TO IT ========================================
 // *Allow filtering of output by response codes via passed args
-// *Colorize output i.e green status codes for 200 ok, red for 404 not found
+// *Colorize output i.e green status codes for 200 ok, red for 404 not found - Mark Elkins will complete this
 // Actually make it use async for speed
 // *Cool logo to display via ASCII art on startup
 // Filter output while requests are running <- fancy hard async stuff I doubt we do but would be awesome
