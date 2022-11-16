@@ -2,6 +2,7 @@ use clap::Parser;
 use std::path::PathBuf;
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
+use spinners::{Spinner, Spinners};
 use std::process;
 use colored::Colorize;
 
@@ -30,18 +31,24 @@ struct Args {
 /// Makes a request to the given full_path
 /// Outputs the status code of the request or
 /// Outputs Error if request failed
-async fn make_request(full_path: &String) {
+async fn make_request(full_path: &String) {    
     let _res = match reqwest::get(full_path).await{
         Ok(res)=>{
             if res.status() ==  200 {
-                println!("[{}] - {}", "200".green(), full_path);
+                println!("\r[{}] - {}", res.status().as_str().green(), full_path);
             }
-            else if res.status() == 404 {
-                println!("[{}] - {}", "404".red(), full_path);
+            else if res.status() == 404 || res.status() == 406 {
+                println!("\r[{}] - {}", res.status().as_str().red(), full_path);
+            }
+            else if res.status() == 403 {
+                println!("\r[{}] - {}", res.status().as_str().yellow(), full_path);
+            }   
+            else{
+                println!("\r[{}] - {}", res.status(), full_path);
             }
         }
         Err(_e)=>{
-            println!("[Error] Make sure given url exists");
+            println!("\r{}", "[Error] Make sure given url exists".red());
             process::exit(0);
         }
     };
@@ -51,15 +58,17 @@ async fn make_request(full_path: &String) {
 async fn main() {
     let args = Args::parse();
 
+    // Displays loading animation
+    let mut sp = Spinner::new(Spinners::Triangle,"Searching...".into());
+
     let wordlist = File::open(args.wordlist).unwrap();
     let reader = BufReader::new(wordlist);
     for (_index, line) in reader.lines().enumerate(){
         let line = line.unwrap();
         let full_path = format!("{}/{}", args.url, line);
 
-        // Pretty sure this is not actually saving time by being asyncronous bc I'm bad
         make_request(&full_path).await;
-
     }
-    
+
+    sp.stop_and_persist("✅", " Finished search!".green().to_string());
 }
