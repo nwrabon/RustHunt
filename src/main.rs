@@ -12,7 +12,7 @@ use colored::Colorize;
 // Actually make it use async for speed
 // *Cool logo to display via ASCII art on startup
 // Filter output while requests are running <- fancy hard async stuff I doubt we do but would be awesome
-// Recurse argument to bust directories find by the current bust
+// Recurse argument to bust directories found by the current bust
 //
 // * = We should make it a goal to finish / not too hard
 
@@ -26,6 +26,16 @@ struct Args {
    /// path to wordlist of directories and files to try
    #[arg(short, long)]
    wordlist: PathBuf,
+}
+
+fn output_art() {
+    let art_path = PathBuf::from("./crosshair.txt");
+    let mut art_file = File::open(art_path).unwrap();
+    let mut art = String::new();
+    art_file.read_to_string(&mut art).unwrap();
+
+    println!("{}\n", art.truecolor(245, 102, 0));
+
 }
 
 /// Makes a request to the given full_path
@@ -56,6 +66,7 @@ async fn make_request(full_path: &String) {
 
 #[tokio::main]
 async fn main() {
+    output_art();
     let args = Args::parse();
 
     // Displays loading animation
