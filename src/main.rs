@@ -9,8 +9,8 @@ use std::process;
 // ======================== TODO IF WE CAN GET TO IT ========================================
 // *Allow filtering of output by response codes via passed args - Mark Elkins can complete this too
 // *Colorize output i.e green status codes for 200 ok, red for 404 not found - Mark Elkins will complete this (200 and 404 done)
-// Actually make it use async for speed - Chase is currently doing this
-// *Cool logo to display via ASCII art on startup
+// Actually make it use async for speed - Done
+// *Cool logo to display via ASCII art on startup - Done
 // Filter output while requests are running <- fancy hard async stuff I doubt we do but would be awesome
 // Recurse argument to bust directories found by the current bust
 //
