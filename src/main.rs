@@ -7,8 +7,8 @@ use std::path::PathBuf;
 use std::process;
 
 // ======================== TODO IF WE CAN GET TO IT ========================================
-// *Allow filtering of output by response codes via passed args - Mark Elkins can complete this too
-// *Colorize output i.e green status codes for 200 ok, red for 404 not found - Mark Elkins will complete this (200 and 404 done)
+// *Allow filtering of output by response codes via passed args - Mark Elkins can complete this too (Got done 200, 404, 406, 403, and all)
+// *Colorize output i.e green status codes for 200 ok, red for 404 not found - Mark Elkins will complete this (200, 404, 406, 403 done)
 // Actually make it use async for speed - Chase is currently doing this
 // *Cool logo to display via ASCII art on startup
 // Filter output while requests are running <- fancy hard async stuff I doubt we do but would be awesome
