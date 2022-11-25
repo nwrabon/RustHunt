@@ -16,7 +16,7 @@ use std::process;
 //
 // * = We should make it a goal to finish / not too hard
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Default, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// url of site to bust
@@ -26,10 +26,14 @@ struct Args {
     /// path to wordlist of directories and files to try
     #[arg(short, long)]
     wordlist: PathBuf,
+    
+    // exclude filter for output
+    #[arg(default_value="none", short, long)]
+    exclude_filter: String,
 
-    // filter for output
-    #[arg(short, long)]
-    filter: String,
+    // include filter for output
+    #[arg(default_value="all", short, long)]
+    include_filter: String,
 }
 
 fn output_art() {
@@ -44,18 +48,18 @@ fn output_art() {
 /// Makes a request to the given full_path
 /// Outputs the status code of the request or
 /// Outputs Error if request failed
-async fn make_request(full_path: &String, filter: &String) {
+async fn make_request(full_path: &String, include_filter: &String, exclude_filter: &String) {
     let _res = match reqwest::get(full_path).await {
         Ok(res) => {
-            if (filter.eq("200") && res.status() == 200) || (filter.eq("a") && res.status() == 200)  {
+            if (include_filter.eq("200") && res.status() == 200) || (include_filter.eq("all") && res.status() == 200) && !exclude_filter.eq("200")  {
                     println!("\r[{}] - {}", res.status().as_str().green(), full_path); 
-            } else if (filter.eq("404") && res.status() == 404) || (filter.eq("a") && res.status() == 404)  {
+            } else if (include_filter.eq("404") && res.status() == 404) || (include_filter.eq("all") && res.status() == 404) && !exclude_filter.eq("404") {
                 println!("\r[{}] - {}", res.status().as_str().red(), full_path); 
-            } else if (filter.eq("406") && res.status() == 406) || (filter.eq("a") && res.status() == 406)  {
+            } else if (include_filter.eq("406") && res.status() == 406) || (include_filter.eq("all") && res.status() == 406) && !exclude_filter.eq("406") {
                 println!("\r[{}] - {}", res.status().as_str().red(), full_path); 
-            } else if (filter.eq("403") && res.status() == 403) || (filter.eq("a") && res.status() == 403)  {
+            } else if (include_filter.eq("403") && res.status() == 403) || (include_filter.eq("all") && res.status() == 403) && !exclude_filter.eq("403") {
                 println!("\r[{}] - {}", res.status().as_str().yellow(), full_path); 
-            } else if filter.eq("a") {
+            } else if include_filter.eq("all") && !exclude_filter.eq("all") && exclude_filter.parse::<u16>().unwrap() != res.status() {
                 println!("\r[{}] - {}", res.status(), full_path);
             }
         }
@@ -82,10 +86,15 @@ async fn main() {
     for (_index, line) in reader.lines().enumerate() {
         let line = line.unwrap();
         let full_path = format!("{}/{}", args.url, line);
-        let filter = format!("{}", args.filter);
+        let include_filter = format!("{}", args.include_filter);
+        let exclude_filter = format!("{}", args.exclude_filter);
+        if !include_filter.eq("all") && !exclude_filter.eq("none") {
+            println!("\r{}", "[Error] Only 1 filter option allowed".red());
+            process::exit(0);
+        }
 
         let handler = tokio::spawn(async move {
-            make_request(&full_path, &filter).await;
+            make_request(&full_path, &include_filter, &exclude_filter).await;
         });
         task_handlers.push(handler);
     }
