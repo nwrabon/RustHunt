@@ -26,6 +26,10 @@ struct Args {
     /// path to wordlist of directories and files to try
     #[arg(short, long)]
     wordlist: PathBuf,
+
+    // filter for output
+    #[arg(short, long)]
+    filter: String,
 }
 
 fn output_art() {
@@ -40,16 +44,18 @@ fn output_art() {
 /// Makes a request to the given full_path
 /// Outputs the status code of the request or
 /// Outputs Error if request failed
-async fn make_request(full_path: &String) {
+async fn make_request(full_path: &String, filter: &String) {
     let _res = match reqwest::get(full_path).await {
         Ok(res) => {
-            if res.status() == 200 {
-                println!("\r[{}] - {}", res.status().as_str().green(), full_path);
-            } else if res.status() == 404 || res.status() == 406 {
-                println!("\r[{}] - {}", res.status().as_str().red(), full_path);
-            } else if res.status() == 403 {
-                println!("\r[{}] - {}", res.status().as_str().yellow(), full_path);
-            } else {
+            if (filter.eq("200") && res.status() == 200) || (filter.eq("a") && res.status() == 200)  {
+                    println!("\r[{}] - {}", res.status().as_str().green(), full_path); 
+            } else if (filter.eq("404") && res.status() == 404) || (filter.eq("a") && res.status() == 404)  {
+                println!("\r[{}] - {}", res.status().as_str().red(), full_path); 
+            } else if (filter.eq("406") && res.status() == 406) || (filter.eq("a") && res.status() == 406)  {
+                println!("\r[{}] - {}", res.status().as_str().red(), full_path); 
+            } else if (filter.eq("403") && res.status() == 403) || (filter.eq("a") && res.status() == 403)  {
+                println!("\r[{}] - {}", res.status().as_str().yellow(), full_path); 
+            } else if filter.eq("a") {
                 println!("\r[{}] - {}", res.status(), full_path);
             }
         }
@@ -76,9 +82,10 @@ async fn main() {
     for (_index, line) in reader.lines().enumerate() {
         let line = line.unwrap();
         let full_path = format!("{}/{}", args.url, line);
+        let filter = format!("{}", args.filter);
 
         let handler = tokio::spawn(async move {
-            make_request(&full_path).await;
+            make_request(&full_path, &filter).await;
         });
         task_handlers.push(handler);
     }
