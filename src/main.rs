@@ -1,3 +1,4 @@
+use clap::ArgGroup;
 use clap::Parser;
 use colored::Colorize;
 use spinners::{Spinner, Spinners};
@@ -11,33 +12,46 @@ use std::process;
 // *Colorize output i.e green status codes for 200 ok, red for 404 not found - Mark Elkins will complete this (200 and 404 done)
 // Actually make it use async for speed - Done
 // *Cool logo to display via ASCII art on startup - Done
-// *Allow filtering of output by response codes via passed args - Mark Elkins can complete this too (Got done 200, 404, 406, 403, and all)
-// *Colorize output i.e green status codes for 200 ok, red for 404 not found - Mark Elkins will complete this (200, 404, 406, 403 done)
-// Actually make it use async for speed - Chase is currently doing this
-// *Cool logo to display via ASCII art on startup
 // Filter output while requests are running <- fancy hard async stuff I doubt we do but would be awesome
 // Recurse argument to bust directories found by the current bust
 //
 // * = We should make it a goal to finish / not too hard
 
-#[derive(Parser, Default, Debug)]
+#[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
+#[command(group(
+    ArgGroup::new("filter")
+        .required(false)
+        .args(["include", "exclude"]),
+    ))]
 struct Args {
-    /// url of site to bust
+    /// **Required** url of site to bust
     #[arg(short, long)]
     url: String,
 
-    /// path to wordlist of directories and files to try
+    /// **Required** path to wordlist of directories and files to try
     #[arg(short, long)]
     wordlist: PathBuf,
 
-    // exclude filter for output
-    #[arg(default_value = "none", short, long)]
-    exclude_filter: String,
+    /// list of status codes to exclude delimited by ':'
+    #[arg(
+        short,
+        long,
+        value_parser,
+        use_value_delimiter = true,
+        value_delimiter = ':'
+    )]
+    exclude: Option<Vec<i32>>,
 
-    // include filter for output
-    #[arg(default_value = "all", short, long)]
-    include_filter: String,
+    /// list of status codes to include delimited by ':'
+    #[arg(
+        short,
+        long,
+        value_parser,
+        use_value_delimiter = true,
+        value_delimiter = ':'
+    )]
+    include: Option<Vec<i32>>,
 }
 
 fn output_art() {
@@ -52,29 +66,16 @@ fn output_art() {
 /// Makes a request to the given full_path
 /// Outputs the status code of the request or
 /// Outputs Error if request failed
-async fn make_request(full_path: &String, include_filter: &String, exclude_filter: &String) {
+async fn make_request(full_path: &String, include_list: &mut Vec<i32>) {
     let _res = match reqwest::get(full_path).await {
         Ok(res) => {
-            if (include_filter.eq("200") && res.status() == 200)
-                || (include_filter.eq("all") && res.status() == 200) && !exclude_filter.eq("200")
-            {
+            if res.status() == 200 {
                 println!("\r[{}] - {}", res.status().as_str().green(), full_path);
-            } else if (include_filter.eq("404") && res.status() == 404)
-                || (include_filter.eq("all") && res.status() == 404) && !exclude_filter.eq("404")
-            {
+            } else if res.status() == 404 || res.status() == 406 {
                 println!("\r[{}] - {}", res.status().as_str().red(), full_path);
-            } else if (include_filter.eq("406") && res.status() == 406)
-                || (include_filter.eq("all") && res.status() == 406) && !exclude_filter.eq("406")
-            {
-                println!("\r[{}] - {}", res.status().as_str().red(), full_path);
-            } else if (include_filter.eq("403") && res.status() == 403)
-                || (include_filter.eq("all") && res.status() == 403) && !exclude_filter.eq("403")
-            {
+            } else if res.status() == 403 {
                 println!("\r[{}] - {}", res.status().as_str().yellow(), full_path);
-            } else if include_filter.eq("all")
-                && !exclude_filter.eq("all")
-                && exclude_filter.parse::<u16>().unwrap() != res.status()
-            {
+            } else {
                 println!("\r[{}] - {}", res.status(), full_path);
             }
         }
@@ -90,6 +91,8 @@ async fn main() {
     output_art();
     let args = Args::parse();
 
+    let mut include_list = args.include.unwrap_or_else(|| Vec::new());
+
     // Displays loading animation
     let mut sp = Spinner::new(Spinners::Triangle, "Searching...".into());
 
@@ -101,15 +104,9 @@ async fn main() {
     for (_index, line) in reader.lines().enumerate() {
         let line = line.unwrap();
         let full_path = format!("{}/{}", args.url, line);
-        let include_filter = format!("{}", args.include_filter);
-        let exclude_filter = format!("{}", args.exclude_filter);
-        if !include_filter.eq("all") && !exclude_filter.eq("none") {
-            println!("\r{}", "[Error] Only 1 filter option allowed".red());
-            process::exit(0);
-        }
 
         let handler = tokio::spawn(async move {
-            make_request(&full_path, &include_filter, &exclude_filter).await;
+            make_request(&full_path, &mut include_list).await;
         });
         task_handlers.push(handler);
     }
