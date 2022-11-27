@@ -8,11 +8,6 @@ use std::path::PathBuf;
 use std::process;
 
 // ======================== TODO IF WE CAN GET TO IT ========================================
-// *Allow filtering of output by response codes via passed args - Mark Elkins can complete this too
-// *Colorize output i.e green status codes for 200 ok, red for 404 not found - Mark Elkins will complete this (200 and 404 done)
-// Actually make it use async for speed - Done
-// *Cool logo to display via ASCII art on startup - Done
-// Filter output while requests are running <- fancy hard async stuff I doubt we do but would be awesome
 // Recurse argument to bust directories found by the current bust
 //
 // * = We should make it a goal to finish / not too hard
@@ -41,7 +36,7 @@ struct Args {
         use_value_delimiter = true,
         value_delimiter = ':'
     )]
-    exclude: Option<Vec<i32>>,
+    exclude: Option<Vec<u16>>,
 
     /// list of status codes to include delimited by ':'
     #[arg(
@@ -51,7 +46,7 @@ struct Args {
         use_value_delimiter = true,
         value_delimiter = ':'
     )]
-    include: Option<Vec<i32>>,
+    include: Option<Vec<u16>>,
 }
 
 fn output_art() {
@@ -66,17 +61,24 @@ fn output_art() {
 /// Makes a request to the given full_path
 /// Outputs the status code of the request or
 /// Outputs Error if request failed
-async fn make_request(full_path: &String, include_list: &mut Vec<i32>) {
+async fn make_request(full_path: &String, include_list: &Vec<u16>, exclude_list: &Vec<u16>) {
     let _res = match reqwest::get(full_path).await {
         Ok(res) => {
-            if res.status() == 200 {
-                println!("\r[{}] - {}", res.status().as_str().green(), full_path);
-            } else if res.status() == 404 || res.status() == 406 {
-                println!("\r[{}] - {}", res.status().as_str().red(), full_path);
-            } else if res.status() == 403 {
-                println!("\r[{}] - {}", res.status().as_str().yellow(), full_path);
-            } else {
-                println!("\r[{}] - {}", res.status(), full_path);
+            if include_list.contains(&res.status().as_u16())
+                || (!exclude_list.is_empty() && !exclude_list.contains(&res.status().as_u16())
+                    || (exclude_list.is_empty() && include_list.is_empty()))
+            {
+                if res.status() == 200 {
+                    println!("\r[{}] - {}", res.status().as_str().green(), full_path);
+                } else if res.status() == 404 || res.status() == 406 || res.status() == 400 {
+                    println!("\r[{}] - {}", res.status().as_str().red(), full_path);
+                } else if res.status() == 403 || res.status() == 429 || res.status() == 451 {
+                    println!("\r[{}] - {}", res.status().as_str().yellow(), full_path);
+                } else if res.status() == 500 || res.status() == 502 || res.status() == 503 {
+                    println!("\r[{}] - {}", res.status().as_str().purple(), full_path);
+                } else {
+                    println!("\r[{}] - {}", res.status(), full_path);
+                }
             }
         }
         Err(_e) => {
@@ -91,8 +93,6 @@ async fn main() {
     output_art();
     let args = Args::parse();
 
-    let mut include_list = args.include.unwrap_or_else(|| Vec::new());
-
     // Displays loading animation
     let mut sp = Spinner::new(Spinners::Triangle, "Searching...".into());
 
@@ -104,9 +104,11 @@ async fn main() {
     for (_index, line) in reader.lines().enumerate() {
         let line = line.unwrap();
         let full_path = format!("{}/{}", args.url, line);
+        let include_list = args.include.clone().unwrap_or_else(|| Vec::new());
+        let exclude_list = args.exclude.clone().unwrap_or_else(|| Vec::new());
 
         let handler = tokio::spawn(async move {
-            make_request(&full_path, &mut include_list).await;
+            make_request(&full_path, &include_list, &exclude_list).await;
         });
         task_handlers.push(handler);
     }
