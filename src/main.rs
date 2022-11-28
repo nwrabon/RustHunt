@@ -49,6 +49,10 @@ struct Args {
         value_delimiter = ':'
     )]
     include: Option<Vec<u16>>,
+
+    /// list of file extensions codes to exclude delimited by ':'
+    #[arg(long, value_parser, use_value_delimiter = true, value_delimiter = ':')]
+    extensions: Option<Vec<String>>,
 }
 
 fn output_art() {
@@ -60,34 +64,32 @@ fn output_art() {
     println!("{}\n", art.truecolor(245, 102, 0));
 }
 
-/// Makes a request to the given full_path
-/// Outputs the status code of the request or
+fn print_response(status: u16, path: String) {
+    println!("\r[{}] - {}", status, path);
+}
+
+/// Makes a request to the given request_path
+/// Returns the status code of the request or
 /// Outputs Error if request failed
-async fn make_request(full_path: &String, include_list: &Vec<u16>, exclude_list: &Vec<u16>) {
-    let _res = match reqwest::get(full_path).await {
+async fn make_request(request_path: &String) -> (u16, &String) {
+    let _res = match reqwest::get(request_path).await {
         Ok(res) => {
-            if include_list.contains(&res.status().as_u16())
-                || (!exclude_list.is_empty() && !exclude_list.contains(&res.status().as_u16())
-                    || (exclude_list.is_empty() && include_list.is_empty()))
-            {
-                if res.status() == 200 {
-                    println!("\r[{}] - {}", res.status().as_str().green(), full_path);
-                } else if res.status() == 404 || res.status() == 406 || res.status() == 400 {
-                    println!("\r[{}] - {}", res.status().as_str().red(), full_path);
-                } else if res.status() == 403 || res.status() == 429 || res.status() == 451 {
-                    println!("\r[{}] - {}", res.status().as_str().yellow(), full_path);
-                } else if res.status() == 500 || res.status() == 502 || res.status() == 503 {
-                    println!("\r[{}] - {}", res.status().as_str().purple(), full_path);
-                } else {
-                    println!("\r[{}] - {}", res.status(), full_path);
-                }
-            }
+            return (res.status().as_u16(), &request_path);
         }
         Err(_e) => {
             println!("\r{}", "[Error] Make sure given url exists".red());
             process::exit(0);
         }
     };
+}
+
+/// Sends base request, iff the directory is found, we bust it as new base_path
+/// Sends all remaining requests by calling all file extensions on the base word
+async fn bust_url(
+    base_path: &String,
+    word_list: &Vec<String>,
+    file_extensions: &Vec<String>,
+) -> (u16, String) {
 }
 
 #[tokio::main]
@@ -98,19 +100,139 @@ async fn main() {
     // Displays loading animation
     let mut sp = Spinner::new(Spinners::Triangle, "Searching...".into());
 
+    // Create an empty vector to hold the words passed in by word list
+    let mut word_list: Vec<String> = vec![];
+
+    // populate the vector with the given wordlist
+    let word_file = File::open(args.wordlist).unwrap();
+    let reader = BufReader::new(word_file);
+    for (_index, line) in reader.lines().enumerate() {
+        word_list.append(line);
+    }
+
+    let file_extensions: Vec<String> = args.extensions.clone().unwrap_or_else(|| {
+        vec![
+            String::from("AIFF"),
+            String::from("AIF"),
+            String::from("AU"),
+            String::from("AVI"),
+            String::from("BAT"),
+            String::from("BMP"),
+            String::from("CLASS"),
+            String::from("JAVA"),
+            String::from("CSV"),
+            String::from("CVS"),
+            String::from("DBF"),
+            String::from("DIF"),
+            String::from("DOC"),
+            String::from("DOCX"),
+            String::from("EPS"),
+            String::from("EXE"),
+            String::from("FM3"),
+            String::from("GIF"),
+            String::from("HQX"),
+            String::from("HTM"),
+            String::from("HTML"),
+            String::from("JPG"),
+            String::from("JPEG"),
+            String::from("MAC"),
+            String::from("MAP"),
+            String::from("MDB"),
+            String::from("MID"),
+            String::from("MIDI"),
+            String::from("MOV"),
+            String::from("QT"),
+            String::from("MTB"),
+            String::from("MTW"),
+            String::from("PDF"),
+            String::from("P65"),
+            String::from("T65"),
+            String::from("PNG"),
+            String::from("PPT"),
+            String::from("PPTX"),
+            String::from("PSD"),
+            String::from("PSP"),
+            String::from("QXD"),
+            String::from("RA"),
+            String::from("RTF"),
+            String::from("SIT"),
+            String::from("TAR"),
+            String::from("TIF"),
+            String::from("TXT"),
+            String::from("WAV"),
+            String::from("WK3"),
+            String::from("WKS"),
+            String::from("WPD"),
+            String::from("WP5"),
+            String::from("XLSX"),
+            String::from("XLSX"),
+            String::from("aiff"),
+            String::from("aif"),
+            String::from("au"),
+            String::from("avi"),
+            String::from("bat"),
+            String::from("bmp"),
+            String::from("class"),
+            String::from("java"),
+            String::from("csv"),
+            String::from("cvs"),
+            String::from("dbf"),
+            String::from("dif"),
+            String::from("doc"),
+            String::from("docx"),
+            String::from("eps"),
+            String::from("exe"),
+            String::from("fm3"),
+            String::from("gif"),
+            String::from("hqx"),
+            String::from("htm"),
+            String::from("html"),
+            String::from("jpg"),
+            String::from("jpeg"),
+            String::from("mac"),
+            String::from("map"),
+            String::from("mdb"),
+            String::from("mid"),
+            String::from("midi"),
+            String::from("mov"),
+            String::from("qt"),
+            String::from("mtb"),
+            String::from("mtw"),
+            String::from("pdf"),
+            String::from("p65"),
+            String::from("t65"),
+            String::from("png"),
+            String::from("ppt"),
+            String::from("pptx"),
+            String::from("psd"),
+            String::from("psp"),
+            String::from("qxd"),
+            String::from("ra"),
+            String::from("rtf"),
+            String::from("sit"),
+            String::from("tar"),
+            String::from("tif"),
+            String::from("txt"),
+            String::from("wav"),
+            String::from("wk3"),
+            String::from("wks"),
+            String::from("wpd"),
+            String::from("wp5"),
+            String::from("xlsx"),
+            String::from("xlsx"),
+        ]
+    });
+
     //create a vector of concurrent task handlers
     let mut task_handlers = vec![];
 
-    let wordlist = File::open(args.wordlist).unwrap();
-    let reader = BufReader::new(wordlist);
-    for (_index, line) in reader.lines().enumerate() {
-        let line = line.unwrap();
-        let full_path = format!("{}/{}", args.url, line);
+    for word in word_list {
+        let base_path = args.url;
         let include_list = args.include.clone().unwrap_or_else(|| Vec::new());
         let exclude_list = args.exclude.clone().unwrap_or_else(|| Vec::new());
 
         let handler = tokio::spawn(async move {
-            make_request(&full_path, &include_list, &exclude_list).await;
+            bust_url(&base_path, &include_list, &exclude_list).await;
         });
         task_handlers.push(handler);
     }
