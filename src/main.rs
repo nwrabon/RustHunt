@@ -49,6 +49,10 @@ struct Args {
         value_delimiter = ':'
     )]
     include: Option<Vec<u16>>,
+
+    /// list of file extensions (including the '.') delimited by ':'
+    #[arg(long, value_parser, use_value_delimiter = true, value_delimiter = ':')]
+    extensions: Option<Vec<String>>,
 }
 
 fn output_art() {
@@ -98,6 +102,67 @@ async fn main() {
     // Displays loading animation
     let mut sp = Spinner::new(Spinners::Triangle, "Searching...".into());
 
+    let mut file_extensions: Vec<String> = args.extensions.clone().unwrap_or_else(|| {
+        vec![
+            String::from(".aiff"),
+            String::from(".aif"),
+            String::from(".au"),
+            String::from(".avi"),
+            String::from(".bat"),
+            String::from(".bmp"),
+            String::from(".class"),
+            String::from(".java"),
+            String::from(".csv"),
+            String::from(".cvs"),
+            String::from(".dbf"),
+            String::from(".dif"),
+            String::from(".doc"),
+            String::from(".docx"),
+            String::from(".eps"),
+            String::from(".exe"),
+            String::from(".fm3"),
+            String::from(".gif"),
+            String::from(".hqx"),
+            String::from(".htm"),
+            String::from(".html"),
+            String::from(".jpg"),
+            String::from(".jpeg"),
+            String::from(".mac"),
+            String::from(".map"),
+            String::from(".mdb"),
+            String::from(".mid"),
+            String::from(".midi"),
+            String::from(".mov"),
+            String::from(".qt"),
+            String::from(".mtb"),
+            String::from(".mtw"),
+            String::from(".pdf"),
+            String::from(".p65"),
+            String::from(".t65"),
+            String::from(".png"),
+            String::from(".ppt"),
+            String::from(".pptx"),
+            String::from(".psd"),
+            String::from(".psp"),
+            String::from(".qxd"),
+            String::from(".ra"),
+            String::from(".rtf"),
+            String::from(".sit"),
+            String::from(".tar"),
+            String::from(".tif"),
+            String::from(".txt"),
+            String::from(".wav"),
+            String::from(".wk3"),
+            String::from(".wks"),
+            String::from(".wpd"),
+            String::from(".wp5"),
+            String::from(".xlsx"),
+            String::from(".xlsx"),
+        ]
+    });
+
+    file_extensions.push(String::from(""));
+
     //create a vector of concurrent task handlers
     let mut task_handlers = vec![];
 
@@ -105,14 +170,16 @@ async fn main() {
     let reader = BufReader::new(wordlist);
     for (_index, line) in reader.lines().enumerate() {
         let line = line.unwrap();
-        let full_path = format!("{}/{}", args.url, line);
-        let include_list = args.include.clone().unwrap_or_else(|| Vec::new());
-        let exclude_list = args.exclude.clone().unwrap_or_else(|| Vec::new());
-
-        let handler = tokio::spawn(async move {
-            make_request(&full_path, &include_list, &exclude_list).await;
-        });
-        task_handlers.push(handler);
+        for extension in &file_extensions {
+            let line = &line;
+            let full_path = format!("{}/{}{}", args.url, line, extension);
+            let include_list = args.include.clone().unwrap_or_else(|| Vec::new());
+            let exclude_list = args.exclude.clone().unwrap_or_else(|| Vec::new());
+            let handler = tokio::spawn(async move {
+                make_request(&full_path, &include_list, &exclude_list).await;
+            });
+            task_handlers.push(handler);
+        }
     }
 
     for handler in task_handlers {
