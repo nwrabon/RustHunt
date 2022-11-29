@@ -9,8 +9,6 @@ use std::process;
 
 // ======================== TODO IF WE CAN GET TO IT ========================================
 // Recurse argument to bust directories found by the current bust
-// check for default file extensions (in a file)
-// options to specify file extensions
 //
 // * = We should make it a goal to finish / not too hard
 
