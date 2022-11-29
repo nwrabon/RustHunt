@@ -9,6 +9,9 @@ use std::process;
 
 // ======================== TODO IF WE CAN GET TO IT ========================================
 // Recurse argument to bust directories found by the current bust
+// Filter based on response size
+// specify number of threads you can run and default to 50
+// import the ascii art so it will be a standalone executable
 //
 // * = We should make it a goal to finish / not too hard
 
